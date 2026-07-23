@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<!--
+  Adiciona o Comp_AutoRepeat nas cubas do QEE. O comp fornece o toggle "Auto-repetir"
+  e guarda o ultimo cultivo. Gated com MayRequire pra so aplicar com o QEE ativo.
+
+  QE_OrganVat         -> Building_VatGrower   (cuba de orgaos com gizmo "Iniciar")
+  QE_PawnVat          -> Building_PawnVatGrower(cuba de clones)
+  QE_Building_OrganVat-> Building_OrganVat     (cuba de orgaos nova, baseada em bills)
+-->
+
+<Patch>
+
+  <Operation MayRequire="Mlie.QuestionableEthicsEnhanced" Class="PatchOperationAdd">
+    <xpath>Defs/ThingDef[defName="QE_OrganVat"]/comps</xpath>
+    <value>
+      <li Class="QEEAutoRepeat.CompProperties_AutoRepeat" />
+    </value>
+  </Operation>
+
+  <Operation MayRequire="Mlie.QuestionableEthicsEnhanced" Class="PatchOperationAdd">
+    <xpath>Defs/ThingDef[defName="QE_PawnVat"]/comps</xpath>
+    <value>
+      <li Class="QEEAutoRepeat.CompProperties_AutoRepeat" />
+    </value>
+  </Operation>
+
+  <Operation MayRequire="Mlie.QuestionableEthicsEnhanced" Class="PatchOperationAdd">
+    <xpath>Defs/ThingDef[defName="QE_Building_OrganVat"]/comps</xpath>
+    <value>
+      <li Class="QEEAutoRepeat.CompProperties_AutoRepeat" />
+    </value>
+  </Operation>
+
+</Patch>

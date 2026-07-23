@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>QEE - Auto-Repeat Vats</name>
+  <author>heinrikdev</author>
+  <packageId>heinrikdev.qeeautorepeat</packageId>
+  <supportedVersions>
+    <li>1.6</li>
+  </supportedVersions>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+    </li>
+    <li>
+      <packageId>Mlie.QuestionableEthicsEnhanced</packageId>
+      <displayName>Questionable Ethics Enhanced (Continued)</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2850854272</steamWorkshopUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>brrainz.harmony</li>
+    <li>Mlie.QuestionableEthicsEnhanced</li>
+  </loadAfter>
+  <description>Adiciona um botao "Auto-repetir cultivo" nas cubas do Questionable Ethics Enhanced. Quando ligado, a cuba reinicia sozinha o ultimo cultivo assim que termina e fica ociosa (se houver ingredientes; na cuba de clones, se houver um genoma disponivel).
+
+Nao inclui arquivos do QEE - apenas patcheia em runtime e exige o QEE instalado.
+
+Creditos: Questionable Ethics Enhanced por KongMD, continuado por Mlie.</description>
+</ModMetaData>
