@@ -55,6 +55,10 @@ namespace QEEAutoRepeat
 
         // As cubas do QEE ticam em modo Normal, entao usamos CompTick (CompTickRare
         // nunca seria chamado). Checamos ~1x por segundo.
+        private static bool Dbg => Prefs.DevMode;
+
+        // As cubas do QEE ticam em modo Normal, entao usamos CompTick (CompTickRare
+        // nunca seria chamado). Checamos ~1x por segundo.
         public override void CompTick()
         {
             base.CompTick();
@@ -69,36 +73,61 @@ namespace QEEAutoRepeat
             Building_GrowerBase grower = parent as Building_GrowerBase;
             if (grower == null || !grower.Spawned)
             {
+                if (Dbg) Log.Warning("[QEEAutoRepeat] tick: parent nao e Building_GrowerBase ou nao spawnado.");
                 return;
             }
 
-            // so reinicia quando ocioso
-            CrafterStatus status = Traverse.Create(grower).Field("status").GetValue<CrafterStatus>();
+            CrafterStatus status;
+            try
+            {
+                status = Traverse.Create(grower).Field("status").GetValue<CrafterStatus>();
+            }
+            catch (System.Exception e)
+            {
+                Log.Error("[QEEAutoRepeat] falha ao ler 'status': " + e.Message);
+                return;
+            }
+
             if (status != CrafterStatus.Idle)
             {
-                return;
+                return; // ainda cultivando/enchendo
             }
 
-            // cuba de orgaos (gizmo): re-inicia a mesma receita (nao e consumida)
-            if (grower is Building_VatGrower && lastRecipe != null)
+            // ocioso: tenta reiniciar
+            try
             {
-                Traverse.Create(grower).Method("startCraftingRecipe", new object[] { lastRecipe }).GetValue();
-                return;
-            }
-
-            // cuba de clones: reusa o mesmo genoma (o QEE nao consome; a cuba guarda no campo 'genome')
-            if (grower is Building_PawnVatGrower pawnVat)
-            {
-                GenomeSequence g = lastGenome;
-                if (g == null || g.Destroyed)
+                // cuba de orgaos (gizmo): re-inicia a mesma receita (nao e consumida)
+                if (grower is Building_VatGrower)
                 {
-                    // fallback: le o genoma que a propria cuba ainda guarda
-                    g = Traverse.Create(pawnVat).Field("genome").GetValue<GenomeSequence>();
+                    if (lastRecipe == null)
+                    {
+                        if (Dbg) Log.Message("[QEEAutoRepeat] cuba de orgaos ociosa mas sem receita memorizada (inicie um cultivo 1x).");
+                        return;
+                    }
+                    if (Dbg) Log.Message("[QEEAutoRepeat] reiniciando cuba de orgaos: " + lastRecipe.defName);
+                    Traverse.Create(grower).Method("startCraftingRecipe", new object[] { lastRecipe }).GetValue();
+                    return;
                 }
-                if (g != null && !g.Destroyed)
+
+                // cuba de clones: reusa o mesmo genoma (o QEE nao consome; a cuba guarda em 'genome')
+                if (grower is Building_PawnVatGrower pawnVat)
                 {
+                    GenomeSequence g = (lastGenome != null && !lastGenome.Destroyed)
+                        ? lastGenome
+                        : Traverse.Create(pawnVat).Field("genome").GetValue<GenomeSequence>();
+
+                    if (g == null || g.Destroyed)
+                    {
+                        if (Dbg) Log.Message("[QEEAutoRepeat] cuba de clones ociosa mas sem genoma (lastGenome e campo 'genome' nulos). Inicie uma clonagem 1x.");
+                        return;
+                    }
+                    if (Dbg) Log.Message("[QEEAutoRepeat] reiniciando cuba de clones com genoma: " + g.LabelCap);
                     Traverse.Create(pawnVat).Method("StartCrafting", new object[] { g }).GetValue();
                 }
+            }
+            catch (System.Exception e)
+            {
+                Log.Error("[QEEAutoRepeat] erro ao reiniciar cultivo: " + e);
             }
         }
     }
@@ -114,6 +143,7 @@ namespace QEEAutoRepeat
             if (c != null)
             {
                 c.lastRecipe = recipeDef;
+                if (Prefs.DevMode) Log.Message("[QEEAutoRepeat] capturou receita da cuba de orgaos: " + recipeDef?.defName);
             }
         }
     }
@@ -127,7 +157,18 @@ namespace QEEAutoRepeat
             if (c != null && genome != null)
             {
                 c.lastGenome = genome;
+                if (Prefs.DevMode) Log.Message("[QEEAutoRepeat] capturou genoma da cuba de clones: " + genome.LabelCap);
             }
+        }
+    }
+
+    // Log de inicializacao pra confirmar que o mod carregou e patcheou.
+    [StaticConstructorOnStartup]
+    public static class LoadNotice
+    {
+        static LoadNotice()
+        {
+            Log.Message("[QEEAutoRepeat] carregado e patches aplicados.");
         }
     }
 }
