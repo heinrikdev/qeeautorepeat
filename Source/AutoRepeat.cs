@@ -35,8 +35,6 @@ namespace QEEAutoRepeat
         public GrowerRecipeDef lastRecipe;
         public ThingDef lastGenomeDef;
 
-        private int cooldown;
-
         public override void PostExposeData()
         {
             base.PostExposeData();
@@ -55,10 +53,16 @@ namespace QEEAutoRepeat
             };
         }
 
-        public override void CompTickRare()
+        // As cubas do QEE ticam em modo Normal, entao usamos CompTick (CompTickRare
+        // nunca seria chamado). Checamos ~1x por segundo.
+        public override void CompTick()
         {
-            base.CompTickRare();
+            base.CompTick();
             if (!autoRepeat)
+            {
+                return;
+            }
+            if (!parent.IsHashIntervalTick(60))
             {
                 return;
             }
@@ -74,17 +78,11 @@ namespace QEEAutoRepeat
             {
                 return;
             }
-            if (cooldown > 0)
-            {
-                cooldown--;
-                return;
-            }
 
             // cuba de orgaos (gizmo): re-inicia a mesma receita (nao e consumida)
             if (grower is Building_VatGrower && lastRecipe != null)
             {
                 Traverse.Create(grower).Method("startCraftingRecipe", new object[] { lastRecipe }).GetValue();
-                cooldown = 3;
                 return;
             }
 
@@ -95,7 +93,6 @@ namespace QEEAutoRepeat
                 if (g != null)
                 {
                     Traverse.Create(pawnVat).Method("StartCrafting", new object[] { g }).GetValue();
-                    cooldown = 3;
                 }
             }
         }
