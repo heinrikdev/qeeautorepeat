@@ -92,7 +92,25 @@ namespace QEEAutoRepeat
                 }
             }
             GenomeSequence f = Traverse.Create(vat).Field("genome").GetValue<GenomeSequence>();
-            return (f != null && !f.Destroyed) ? f : null;
+            if (f != null && !f.Destroyed)
+            {
+                return f;
+            }
+
+            // ultimo recurso (cubas vindas do save, sem genoma memorizado): pega qualquer
+            // genoma disponivel no mapa, nao proibido.
+            Map map = vat.Map;
+            if (map != null)
+            {
+                foreach (Thing t in map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver))
+                {
+                    if (t is GenomeSequence gs2 && !gs2.Destroyed && gs2.Spawned && !gs2.IsForbidden(Faction.OfPlayer))
+                    {
+                        return gs2;
+                    }
+                }
+            }
+            return null;
         }
 
         // As cubas do QEE ticam em modo Normal, entao usamos CompTick.
