@@ -139,7 +139,22 @@ namespace QEEAutoRepeat
                     GenomeSequence g = ResolveGenome(pawnVat);
                     if (g == null)
                     {
-                        if (Dbg) Log.Message("[QEEAutoRepeat] cuba de clones ociosa mas sem genoma (memorizado/container/campo todos vazios).");
+                        if (Dbg)
+                        {
+                            ThingOwner<Thing> ic = Traverse.Create(pawnVat).Field("innerContainer").GetValue<ThingOwner<Thing>>();
+                            string dump = "vazio";
+                            if (ic != null && ic.Count > 0)
+                            {
+                                var parts = new List<string>();
+                                for (int i = 0; i < ic.Count; i++)
+                                {
+                                    Thing t = ic[i];
+                                    parts.Add(t?.def?.defName + " [" + t?.GetType().Name + "]");
+                                }
+                                dump = string.Join(", ", parts);
+                            }
+                            Log.Message("[QEEAutoRepeat] sem genoma. Conteudo do container: " + dump + " | inicie uma clonagem NOVA pra memorizar.");
+                        }
                         return;
                     }
                     if (Dbg) Log.Message("[QEEAutoRepeat] reiniciando cuba de clones com genoma: " + g.LabelCap + " (spawned=" + g.Spawned + ")");
