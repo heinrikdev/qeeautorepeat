@@ -33,7 +33,7 @@ namespace QEEAutoRepeat
 
         // capturado pelos patches de start; nao persistido (re-captura ao iniciar manualmente)
         public GrowerRecipeDef lastRecipe;
-        public ThingDef lastGenomeDef;
+        public GenomeSequence lastGenome;
 
         public override void PostExposeData()
         {
@@ -86,32 +86,20 @@ namespace QEEAutoRepeat
                 return;
             }
 
-            // cuba de clones: procura um genoma igual e re-inicia
-            if (grower is Building_PawnVatGrower pawnVat && lastGenomeDef != null)
+            // cuba de clones: reusa o mesmo genoma (o QEE nao consome; a cuba guarda no campo 'genome')
+            if (grower is Building_PawnVatGrower pawnVat)
             {
-                GenomeSequence g = FindGenome(pawnVat, lastGenomeDef);
-                if (g != null)
+                GenomeSequence g = lastGenome;
+                if (g == null || g.Destroyed)
+                {
+                    // fallback: le o genoma que a propria cuba ainda guarda
+                    g = Traverse.Create(pawnVat).Field("genome").GetValue<GenomeSequence>();
+                }
+                if (g != null && !g.Destroyed)
                 {
                     Traverse.Create(pawnVat).Method("StartCrafting", new object[] { g }).GetValue();
                 }
             }
-        }
-
-        private static GenomeSequence FindGenome(Building vat, ThingDef def)
-        {
-            Map map = vat.Map;
-            if (map == null)
-            {
-                return null;
-            }
-            foreach (Thing t in map.listerThings.ThingsOfDef(def))
-            {
-                if (t is GenomeSequence gs && !t.IsForbidden(Faction.OfPlayer))
-                {
-                    return gs;
-                }
-            }
-            return null;
         }
     }
 
@@ -138,7 +126,7 @@ namespace QEEAutoRepeat
             Comp_AutoRepeat c = __instance.GetComp<Comp_AutoRepeat>();
             if (c != null && genome != null)
             {
-                c.lastGenomeDef = genome.def;
+                c.lastGenome = genome;
             }
         }
     }
