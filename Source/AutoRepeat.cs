@@ -57,8 +57,45 @@ namespace QEEAutoRepeat
         // nunca seria chamado). Checamos ~1x por segundo.
         private static bool Dbg => Prefs.DevMode;
 
-        // As cubas do QEE ticam em modo Normal, entao usamos CompTick (CompTickRare
-        // nunca seria chamado). Checamos ~1x por segundo.
+        private static CrafterStatus ReadStatus(Building_GrowerBase g)
+        {
+            return Traverse.Create(g).Field("status").GetValue<CrafterStatus>();
+        }
+
+        // Enquanto a cuba de clones esta ativa, memoriza o genoma que ela usa - porque
+        // o QEE limpa o campo 'genome' quando o cultivo termina.
+        private void CaptureWhileActive(Building_PawnVatGrower vat)
+        {
+            GenomeSequence cur = Traverse.Create(vat).Field("genome").GetValue<GenomeSequence>();
+            if (cur != null && !cur.Destroyed)
+            {
+                lastGenome = cur;
+            }
+        }
+
+        // Acha um genoma pra reusar: memorizado > dentro do container > campo 'genome'.
+        private GenomeSequence ResolveGenome(Building_PawnVatGrower vat)
+        {
+            if (lastGenome != null && !lastGenome.Destroyed)
+            {
+                return lastGenome;
+            }
+            ThingOwner<Thing> ic = Traverse.Create(vat).Field("innerContainer").GetValue<ThingOwner<Thing>>();
+            if (ic != null)
+            {
+                for (int i = 0; i < ic.Count; i++)
+                {
+                    if (ic[i] is GenomeSequence gs && !gs.Destroyed)
+                    {
+                        return gs;
+                    }
+                }
+            }
+            GenomeSequence f = Traverse.Create(vat).Field("genome").GetValue<GenomeSequence>();
+            return (f != null && !f.Destroyed) ? f : null;
+        }
+
+        // As cubas do QEE ticam em modo Normal, entao usamos CompTick.
         public override void CompTick()
         {
             base.CompTick();
@@ -66,62 +103,46 @@ namespace QEEAutoRepeat
             {
                 return;
             }
-            if (!parent.IsHashIntervalTick(60))
-            {
-                return;
-            }
             Building_GrowerBase grower = parent as Building_GrowerBase;
             if (grower == null || !grower.Spawned)
             {
-                if (Dbg) Log.Warning("[QEEAutoRepeat] tick: parent nao e Building_GrowerBase ou nao spawnado.");
                 return;
             }
 
             CrafterStatus status;
-            try
+            try { status = ReadStatus(grower); }
+            catch (System.Exception e) { Log.Error("[QEEAutoRepeat] falha ao ler 'status': " + e.Message); return; }
+
+            // memoriza o genoma enquanto a cuba de clones esta em uso (todo tick)
+            if (grower is Building_PawnVatGrower activeVat && status != CrafterStatus.Idle)
             {
-                status = Traverse.Create(grower).Field("status").GetValue<CrafterStatus>();
+                CaptureWhileActive(activeVat);
             }
-            catch (System.Exception e)
+
+            // so avalia reinicio ~1x por segundo
+            if (!parent.IsHashIntervalTick(60) || status != CrafterStatus.Idle)
             {
-                Log.Error("[QEEAutoRepeat] falha ao ler 'status': " + e.Message);
                 return;
             }
 
-            if (status != CrafterStatus.Idle)
-            {
-                return; // ainda cultivando/enchendo
-            }
-
-            // ocioso: tenta reiniciar
             try
             {
-                // cuba de orgaos (gizmo): re-inicia a mesma receita (nao e consumida)
-                if (grower is Building_VatGrower)
+                if (grower is Building_VatGrower && lastRecipe != null)
                 {
-                    if (lastRecipe == null)
-                    {
-                        if (Dbg) Log.Message("[QEEAutoRepeat] cuba de orgaos ociosa mas sem receita memorizada (inicie um cultivo 1x).");
-                        return;
-                    }
                     if (Dbg) Log.Message("[QEEAutoRepeat] reiniciando cuba de orgaos: " + lastRecipe.defName);
                     Traverse.Create(grower).Method("startCraftingRecipe", new object[] { lastRecipe }).GetValue();
                     return;
                 }
 
-                // cuba de clones: reusa o mesmo genoma (o QEE nao consome; a cuba guarda em 'genome')
                 if (grower is Building_PawnVatGrower pawnVat)
                 {
-                    GenomeSequence g = (lastGenome != null && !lastGenome.Destroyed)
-                        ? lastGenome
-                        : Traverse.Create(pawnVat).Field("genome").GetValue<GenomeSequence>();
-
-                    if (g == null || g.Destroyed)
+                    GenomeSequence g = ResolveGenome(pawnVat);
+                    if (g == null)
                     {
-                        if (Dbg) Log.Message("[QEEAutoRepeat] cuba de clones ociosa mas sem genoma (lastGenome e campo 'genome' nulos). Inicie uma clonagem 1x.");
+                        if (Dbg) Log.Message("[QEEAutoRepeat] cuba de clones ociosa mas sem genoma (memorizado/container/campo todos vazios).");
                         return;
                     }
-                    if (Dbg) Log.Message("[QEEAutoRepeat] reiniciando cuba de clones com genoma: " + g.LabelCap);
+                    if (Dbg) Log.Message("[QEEAutoRepeat] reiniciando cuba de clones com genoma: " + g.LabelCap + " (spawned=" + g.Spawned + ")");
                     Traverse.Create(pawnVat).Method("StartCrafting", new object[] { g }).GetValue();
                 }
             }
